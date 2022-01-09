@@ -660,6 +660,28 @@ void doFrame(Vulkan& vk, Renderer& renderer) {
         }
     }
 
+    // NOTE(jan): Upload image.
+    VulkanSampler sampler;
+    {
+        const u32 width = windowWidth;
+        const u32 height = windowHeight;
+        const u32 pixelCount = width * height;
+        const u32 channelsPerPixel = 4;
+        const u32 bytesPerChannel = 1;
+        const umm pixelStride = channelsPerPixel * bytesPerChannel;
+        const umm size = pixelCount * pixelStride;
+
+        auto pixels = (u8*)malloc(size);
+        for (umm pixelIndex = 0; pixelIndex < size; pixelIndex += pixelStride) {
+            pixels[pixelIndex+1] = 0xFF;
+            pixels[pixelIndex+2] = 0xFF;
+        }
+
+        uploadTexture(vk, width, height, VK_FORMAT_R8G8B8A8_UNORM, pixels, size, sampler);
+
+        free(pixels);
+    }
+
     // NOTE(jan): Start recording commands.
     VkCommandBuffer cmds = {};
     createCommandBuffers(vk.device, vk.cmdPool, 1, &cmds);
