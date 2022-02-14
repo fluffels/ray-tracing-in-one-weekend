@@ -338,6 +338,7 @@ Vulkan vk;
 Vec4 base03 = { .x =      0.f, .y =  43/255.f, .z =  54/255.f, .w = 1.f };
 Vec4 base01 = { .x = 88/255.f, .y = 110/255.f, .z = 117/255.f, .w = 1.f };
 Vec4 white =  { .x =      1.f, .y =       1.f, .z =       1.f, .w = 1.f };
+Vec4 yellow = { .x =      1.f, .y =       1.f, .z =       0.f, .w = 1.f };
 
 // **************************
 // * FONT: Font management. *
@@ -585,6 +586,37 @@ void doFrame(Vulkan& vk, Renderer& renderer) {
     RENDERER_GET(text, meshes, "text");
     RENDERER_GET(font, fonts, "default");
 
+    // NOTE(jan): Upload image.
+    VulkanSampler sampler;
+    {
+        const u32 width = windowWidth;
+        const u32 height = windowHeight;
+        const u32 pixelCount = width * height;
+        const u32 channelsPerPixel = 4;
+        const u32 bytesPerChannel = 1;
+        const umm pixelStride = channelsPerPixel * bytesPerChannel;
+        const umm size = pixelCount * pixelStride;
+
+        auto pixels = (u8*)malloc(size);
+        for (umm pixelIndex = 0; pixelIndex < size; pixelIndex += pixelStride) {
+            pixels[pixelIndex+1] = 0xFF;
+            pixels[pixelIndex+2] = 0xFF;
+        }
+
+        uploadTexture(vk, width, height, VK_FORMAT_R8G8B8A8_UNORM, pixels, size, sampler);
+
+        free(pixels);
+
+        AABox imageBox = {
+            .x0 = 0.f,
+            .x1 = windowWidth,
+            .y0 = 0.f,
+            .y1 = windowHeight
+        };
+        pushAABox(boxes, imageBox, yellow);
+    }
+
+    // NOTE(jan): Console stuff.
     if (input.consoleToggle) {
         console.show = !console.show;
         input.consoleToggle = false;
@@ -658,28 +690,6 @@ void doFrame(Vulkan& vk, Renderer& renderer) {
                 lineIndex = console.lines.count - 1;
             }
         }
-    }
-
-    // NOTE(jan): Upload image.
-    VulkanSampler sampler;
-    {
-        const u32 width = windowWidth;
-        const u32 height = windowHeight;
-        const u32 pixelCount = width * height;
-        const u32 channelsPerPixel = 4;
-        const u32 bytesPerChannel = 1;
-        const umm pixelStride = channelsPerPixel * bytesPerChannel;
-        const umm size = pixelCount * pixelStride;
-
-        auto pixels = (u8*)malloc(size);
-        for (umm pixelIndex = 0; pixelIndex < size; pixelIndex += pixelStride) {
-            pixels[pixelIndex+1] = 0xFF;
-            pixels[pixelIndex+2] = 0xFF;
-        }
-
-        uploadTexture(vk, width, height, VK_FORMAT_R8G8B8A8_UNORM, pixels, size, sampler);
-
-        free(pixels);
     }
 
     // NOTE(jan): Start recording commands.
@@ -775,6 +785,7 @@ void doFrame(Vulkan& vk, Renderer& renderer) {
     vkQueueWaitIdle(vk.queue);
 
     // Cleanup.
+    destroyVulkanSampler(vk.device, sampler);
     for (auto& mesh: meshesToFree) {
         destroyMesh(vk, mesh);
     }
